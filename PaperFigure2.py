@@ -1,4 +1,31 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import xarray as xr
+import cartopy
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import pandas as pd
+import matplotlib.dates as mdates
 
+path = '/var/data/tfreveletti/'
+
+import sys
+sys.path.append('/tank/users/tfreveletti')
+from lanczos_filter import lanczos_filter
+
+def create_LFP_EOF(lfps, indices, s, numLFPS):
+    '''
+    Input computed LFPs and reinstate nans into the correct locations.
+    '''
+    LFPs = []
+    # k = number of modes wanted
+    for k in range(numLFPS):
+        LFP = np.full((s[1] * s[2]), np.nan) #original data shape
+        LFP[indices[0,:]] = lfps[k, :].real  # fill the valid indices with the spatial data
+        LFP = LFP.reshape(s[1], s[2])
+        LFPs.append(LFP)
+    
+    return LFPs
 
 ################### Pacific #######################
 
