@@ -6,9 +6,7 @@ path = '/var/data/tfreveletti/'
 
 import sys
 sys.path.append('/tank/users/tfreveletti')
-from signal_processing import lfca
 from lanczos_filter import lanczos_filter
-
 
 def lowpass_filter(ts):
     '''
@@ -19,54 +17,6 @@ def lowpass_filter(ts):
     xfilt  = lanczos_filter(x, 1, 1./120)[0] # 120 = 10 years * 12 months
     
     return xfilt[np.size(xfilt)//3:2*np.size(xfilt)//3]
-
-def pattern_rotation_with_unforced(LFCs, LFPs, nLFPs, ref_patterns, AREA_WEIGHTS):
-    """
-    Rotate LFPs and LFCs to best match reference patterns using area-weighted least squares.
-    Also, returns the full unforced component by removing the forced variance in each mode and summing.
-
-    Returns:
-        LFCs_rotated
-        LFPs_rotated
-        unforced_field  --> full residual field from sum of 10 modes
-    """
-
-    # extract and weight patterns for regression
-    L = LFPs[:nLFPs] * AREA_WEIGHTS.T
-    ref = ref_patterns.T * AREA_WEIGHTS
-    L = L.T
-
-    # solve least squares for rotation matrix
-    beta = np.linalg.inv(L.T @ L) @ (L.T @ ref)
-    beta /= np.sqrt(np.sum(beta**2, axis=0, keepdims=True))
-
-    # rotate patterns and time series
-    LFPs_rotated = beta.T @ LFPs[:nLFPs, :]
-    LFCs_rotated = LFCs[:, :nLFPs] @ beta
-
-    # compute forced projection operator
-    F = ref_patterns
-    P = F.T @ np.linalg.inv(F @ F.T) @ F
-
-    # compute residuals mode-by-mode
-    ntime = LFCs.shape[0]
-    nspace = LFPs.shape[1]
-    unforced_field = np.zeros((ntime, nspace))
-
-    for i in range(nLFPs):
-        filtered_mode = np.outer(LFCs[:, i], LFPs[i, :])
-        
-        # forced projection for each timestep
-        forced_part = filtered_mode @ P.T
-        
-        # unforced portion of each mode
-        residual_part = filtered_mode - forced_part
-        
-        # summation of all unforced portions
-        unforced_field += residual_part
-
-    return LFCs_rotated, LFPs_rotated, unforced_field
-
 
 def e2001(ssta):
     '''
@@ -173,5 +123,7 @@ AMO_dataset = xr.Dataset(
     }
 )
 
+# Save
+AMO_dataset.to_netcdf(path + f"processed_runs/AMO_results_{obs_model}.nc")
 # Save
 AMO_dataset.to_netcdf(path + f"processed_runs/AMO_results_{obs_model}.nc")
