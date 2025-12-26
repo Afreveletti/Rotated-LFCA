@@ -17,17 +17,6 @@ def lowpass_filter(ts):
     xfilt  = lanczos_filter(x, 1, 1./120)[0] # 120 = 10 years * 12 months
     
     return xfilt[np.size(xfilt)//3:2*np.size(xfilt)//3]
-  
-
-def calc_r2(lfc_data, true_forcing_ts):
-    '''
-    Calulate the R-squared value.
-    '''
-    # calc corr
-    corr = sp.stats.pearsonr(lfc_data, true_forcing_ts)[0]
-    
-    return corr**2
-  
 
 def e2001(ssta):
     '''
