@@ -38,7 +38,7 @@ def e2001(ssta):
     return lowpass_filter(detrended_ssta)
 
 
-Forced_Unforced_TS_data = xr.open_dataset(path + f'processed_runs/filtered_data/{model}_{basin}_forced_unforced_TS_25_modes_conservative.nc') 
+Forced_Unforced_TS_data = xr.open_dataset(path + f'processed_runs/filtered_data/{model}_{basin}_forced_unforced_TS_25_modes.nc') 
 
 ts_external = Forced_Unforced_TS_data.TS.sel(component = ['forced']).squeeze()
 ts_internal = Forced_Unforced_TS_data.TS.sel(component = ['unforced']).squeeze()
@@ -61,6 +61,6 @@ for i in range(s[0]):
     corr_full_forced[i]   = sp.stats.pearsonr(full_e2001[i], forced_e2001[i])[0]
     corr_full_internal[i] = sp.stats.pearsonr(full_e2001[i], internal_e2001[i])[0]
 
-np.savez(path + f"FigureFiles/{basin}_{model}_amo_correlations_conservative.npz",
+np.savez(path + f"FigureFiles/{basin}_{model}_amo_correlations.npz",
          corr_full_forced=corr_full_forced,
          corr_full_internal=corr_full_internal)
