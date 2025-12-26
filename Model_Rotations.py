@@ -1,16 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
-import cartopy
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 import scipy as sp
-from scipy import io
-import pandas as pd
-import glob 
-import matplotlib.dates as mdates
-import seaborn as sns
-from scipy.stats import sem, t
 
 path = '/var/data/tfreveletti/'
 
@@ -18,19 +9,6 @@ import sys
 sys.path.append('/tank/users/tfreveletti')
 from signal_processing import lfca
 from lanczos_filter import lanczos_filter
-
-def create_LFP_EOF(lfps, indices, s, numLFPS):
-    '''
-    Input computed LFPs and reinstate nans into the correct locations.
-    '''
-    LFPs = []
-    for k in range(numLFPS):
-        LFP = np.full((s[1] * s[2]), np.nan) #original data shape
-        LFP[indices[0,:]] = lfps[k, :].real  # fill the valid indices with the spatial data
-        LFP = LFP.reshape(s[1], s[2])
-        LFPs.append(LFP)
-    
-    return LFPs
 
 def lowpass_filter(ts):
     '''
@@ -81,14 +59,6 @@ def weighted_time_series_lowpass(ts_da, lats, lons):
 
     return weighted_ts
 
-def calc_r2(lfc_data, true_forcing_ts):
-    '''
-    Calulate the R-squared value.
-    '''
-    # calc corr
-    corr = sp.stats.pearsonr(lfc_data, true_forcing_ts)[0]
-    
-    return corr**2
 
 def pattern_rotation_with_unforced(LFCs, LFPs, nLFPs, ref_patterns, AREA_WEIGHTS):
     """
@@ -152,131 +122,6 @@ def ensemble_significance(ts_ens):
     
     perc_insig = 100 * np.sum(mask) / len(mask)
     return mean, mask, perc_insig
-
-
-def mean_ci(ts, alpha=0.05):
-    """
-    Compute ensemble mean and 95% confidence intervals
-    """
-    mean = np.mean(ts, axis=0)
-    n = ts.shape[0]
-    ci = t.ppf(1 - alpha/2, n-1) * sem(ts, axis=0, nan_policy='omit')
-    return mean, ci
-
-
-def remove_GMSSTA_regression(ts_da, gmssta_da):
-    """
-    Remove GMSSTA contribution via linear regression at each grid point.
-    """
-    ne, nt, nlat, nlon = ts_da.sizes['ensemble'], ts_da.sizes['time'], ts_da.sizes['lat'], ts_da.sizes['lon']
-
-    # Flatten spatial dims
-    ts_flat = ts_da.values.reshape(ne, nt, nlat*nlon)
-    gmssta = gmssta_da.values
-
-    residuals_flat = np.full_like(ts_flat, np.nan)
-    for i in range(ne):
-        X = np.vstack([np.ones(nt), gmssta[i]]).T
-        Y = ts_flat[i]
-
-        # Mask valid points
-        mask = ~np.isnan(Y[0])
-        # assuming nan locations are unchanging through time
-        Y_valid = Y[:, mask]
-
-        # Linear regression via least squares
-        beta, _, _, _ = np.linalg.lstsq(X, Y_valid, rcond=None)
-        # Remove linearly related portion 
-        residual_flat = Y_valid - X @ beta
-        # Fill non-nan locations
-        residuals_flat[i, :, mask] = residual_flat.T
-
-    residuals = xr.DataArray(
-        residuals_flat.reshape(ne, nt, nlat, nlon),
-        dims=('ensemble','time','lat','lon'),
-        coords={'ensemble': ts_da.ensemble, 'time': ts_da.time, 'lat': ts_da.lat, 'lon': ts_da.lon},
-        name='TS'
-    )
-
-    return residuals
-
-def e2001(ssta):
-    '''
-    Calculates the standard AMO index defined by Enfield et al. 2001.
-
-    ssta: 3d Xarray DataArray 
-    '''
-    
-    lat = ssta.lat.where((ssta.lat > 0)&(ssta.lat < 60))
-    lon = ssta.lon.where((ssta.lon > 280)&(ssta.lon <= 360))
-    
-    ssta_domain = ssta.where((ssta.lat == lat)&(ssta.lon == lon))
-    
-    #remove linear trend
-    coeffs = ssta_domain.polyfit(dim='time', deg=1)
-    fit = xr.polyval(ssta_domain['time'], coeffs.polyfit_coefficients)
-    detrended_ssta = (ssta_domain - fit).mean(axis  = (1,2))
-   
-    return lowpass_filter(detrended_ssta)
-
-
-
-def PCA(x, scale):
-    '''
-    Performs Principal Component Analysis.
-    '''
-    
-    def peigs(a, rmax):
-        (m, n) = a.shape
-        rmax = min(rmax, min(m, n))
-    
-        # Use sparse eigendecomposition if rmax is significantly smaller
-        if rmax < min(m, n) / 10.:
-            d, v = scipy.sparse.linalg.eigs(a, rmax)
-        else:
-            d, v = np.linalg.eig(a)
-    
-        d = np.real(d) 
-        v = np.real(v)
-    
-        # Sort eigenvalues in descending order
-        idx = np.argsort(-d)
-        d = d[idx]
-        v = v[:, idx]
-    
-        # Estimate rank: discard near-zero eigenvalues
-        d_min = np.max(d) * max(m, n) * np.finfo(float).eps
-        r = np.sum(d > d_min)
-    
-        return v[:, :r], d[:r], r
-    
-    if x.ndim != 2:
-        return
-    else:
-        covtot = np.cov(x, rowvar=False)
-    (n, p) = x.shape
-    if covtot.shape != (p, p):
-        return
-
-    # Center data
-    x = x - np.nanmean(x, 0)[np.newaxis, ...]
-
-    # Apply scaling
-    xs = x * np.transpose(scale)
-
-    # Weighted covariance
-    covtot = np.transpose(scale) * covtot * scale
-    pcvec, evl, rest = peigs(covtot, min(n - 1, p))
-    trcovtot = np.trace(covtot)
-
-    # Percent of total sample variation accounted for by each EOF
-    pvar = evl / trcovtot * 100
-
-    eof = np.transpose(pcvec) / np.transpose(scale)
-
-    pcs = np.dot(xs, eof.T)
-
-    return pcs, eof, pvar
 
 
 # Options:
@@ -485,7 +330,6 @@ TS_unforced = xr.DataArray(
 
 print('\nAnalysis Performed.')
 
-# New Criteria:
 # Number of reference modes included is determined by when 80% or greater of 
 # the 10-year lowpass filtered ensemble mean unforced TS 
 # is indistiguishable from 0... i.e. less than 2 STDs
