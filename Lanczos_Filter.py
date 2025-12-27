@@ -4,6 +4,7 @@
 Created on Tue Dec 18 13:37:16 2018
 
 @author: Zhaoyi.Shen
+Original Code at: https://github.com/rcjwills/lfca/blob/master/Python/lanczos_filter.py
 """
 import numpy as np
 
