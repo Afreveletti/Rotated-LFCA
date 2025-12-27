@@ -3,8 +3,8 @@
 """
 Created on Fri Dec 14 21:24:17 2018
 
-@author: Zhaoyi.Shen
-Edited: Anthony Freveletti
+Original Code at: https://github.com/rcjwills/lfca/blob/master/Python/signal_processing.py
+Edited by: Anthony Freveletti
 """
 
 import sys
