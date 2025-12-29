@@ -1,2 +1,4 @@
 The LFCA and Lanczos filter functions are contained in "Signal_Processing.py" and "Lanczos_Filter.py "files, respectively. These are both taken from https://github.com/rcjwills/lfca/tree/master/Python. The Lanczos filter code has not been modified and is identical to what is available at the link. The LFCA function, however, has been edited to accommodate a concatenated LFCA approach; though, they are essentially the same.
 https://doi.org/10.5281/zenodo.18071312
+
+The forced and unforced model and observations data can be found at: https://doi.org/10.5281/zenodo.18089744
