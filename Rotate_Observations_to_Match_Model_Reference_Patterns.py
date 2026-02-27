@@ -16,7 +16,7 @@ def pattern_rotation_with_unforced(LFCs, LFPs, nLFPs, ref_patterns, AREA_WEIGHTS
     Returns:
         LFCs_rotated
         LFPs_rotated
-        unforced_field  --> full residual field from sum of 10 modes
+        unforced_field  --> full residual field from sum of N modes
     """
 
     # extract and weight patterns for regression
@@ -34,7 +34,11 @@ def pattern_rotation_with_unforced(LFCs, LFPs, nLFPs, ref_patterns, AREA_WEIGHTS
 
     # compute forced projection operator
     F = ref_patterns
-    P = F.T @ np.linalg.inv(F @ F.T) @ F
+    w = AREA_WEIGHTS.flatten()          # sqrt weights
+    W = w**2                      # full area weights
+    P = F.T @ np.linalg.inv((F * W) @ F.T) @ (F * W)
+
+    #P = F.T @ np.linalg.inv(F @ F.T) @ F
 
     # compute residuals mode-by-mode
     ntime = LFCs.shape[0]
